@@ -1,7 +1,7 @@
 # Vendor learning (vendor aliasing) for ofxreader
 
 **Date:** 2026-06-01
-**Status:** Approved design — pending implementation plan
+**Status:** Implemented
 
 ## Purpose
 

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?OFX OFXHEADER="200" VERSION="220" SECURITY="NONE" OLDFILEUID="NONE" NEWFILEUID="NONE"?>
+<OFX>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <STMTRS>
+        <CURDEF>USD</CURDEF>
+        <BANKACCTFROM>
+          <BANKID>121000248</BANKID>
+          <ACCTID>1234567890</ACCTID>
+          <ACCTTYPE>CHECKING</ACCTTYPE>
+        </BANKACCTFROM>
+        <BANKTRANLIST>
+          <DTSTART>20240101000000.000[-5:EST]</DTSTART>
+          <DTEND>20240430000000.000[-5:EST]</DTEND>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20240405120000.000[-5:EST]</DTPOSTED>
+            <TRNAMT>-12.50</TRNAMT>
+            <FITID>v-1</FITID>
+            <NAME>SQ *JASONS CARO 0123</NAME>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20240418120000.000[-5:EST]</DTPOSTED>
+            <TRNAMT>-8.00</TRNAMT>
+            <FITID>v-2</FITID>
+            <NAME>TST* JASONSCAROUSEL</NAME>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20240320120000.000[-5:EST]</DTPOSTED>
+            <TRNAMT>-5.00</TRNAMT>
+            <FITID>v-3</FITID>
+            <NAME>SQ *JASONS CARO 0123</NAME>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20240410120000.000[-5:EST]</DTPOSTED>
+            <TRNAMT>-20.00</TRNAMT>
+            <FITID>v-4</FITID>
+            <NAME>JASON CAROUSEL LLC 99</NAME>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20240412120000.000[-5:EST]</DTPOSTED>
+            <TRNAMT>-14.99</TRNAMT>
+            <FITID>v-5</FITID>
+            <NAME>NETFLIX.COM</NAME>
+            <MEMO>Monthly subscription</MEMO>
+          </STMTTRN>
+          <STMTTRN>
+            <TRNTYPE>DEBIT</TRNTYPE>
+            <DTPOSTED>20240415120000.000[-5:EST]</DTPOSTED>
+            <TRNAMT>-45.00</TRNAMT>
+            <FITID>v-6</FITID>
+            <NAME>AMAZON MARKETPLACE</NAME>
+          </STMTTRN>
+        </BANKTRANLIST>
+        <LEDGERBAL>
+          <BALAMT>1000.00</BALAMT>
+          <DTASOF>20240430120000.000[-5:EST]</DTASOF>
+        </LEDGERBAL>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>

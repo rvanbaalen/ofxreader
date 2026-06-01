@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { existsSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -9,12 +11,16 @@ const BIN = join(ROOT, "bin", "ofxreader.ts");
 const BANK = join(ROOT, "test", "fixtures", "bank.ofx");
 const COMBINED = join(ROOT, "test", "fixtures", "combined.ofx");
 const V1 = join(ROOT, "test", "fixtures", "v1.ofx");
+const VENDORS = join(ROOT, "test", "fixtures", "vendors.ofx");
 
 type Run = { code: number; stdout: string; stderr: string };
 
-function cli(args: string[]): Run {
+function cli(args: string[], env?: Record<string, string>): Run {
   try {
-    const stdout = execFileSync(process.execPath, [BIN, ...args], { encoding: "utf8" });
+    const stdout = execFileSync(process.execPath, [BIN, ...args], {
+      encoding: "utf8",
+      env: env ? { ...process.env, ...env } : process.env,
+    });
     return { code: 0, stdout, stderr: "" };
   } catch (err) {
     const e = err as { status?: number; stdout?: Buffer | string; stderr?: Buffer | string };
@@ -24,6 +30,10 @@ function cli(args: string[]): Run {
       stderr: e.stderr?.toString() ?? "",
     };
   }
+}
+
+function tmpStore(): string {
+  return join(tmpdir(), `ofx-cli-vendors-${process.pid}-${Math.random().toString(36).slice(2)}.json`);
 }
 
 test("summary returns one statement object per statement", () => {
@@ -126,6 +136,45 @@ test("OFX 1.x file is NOT_OFX2 (exit 1)", () => {
 
 test("bad --type value is a USAGE error", () => {
   const r = cli(["transactions", BANK, "--type", "spam"]);
+  assert.equal(r.code, 2);
+  assert.equal(JSON.parse(r.stderr).error.code, "USAGE");
+});
+
+test("vendor flow: candidates -> learn -> list -> deterministic query", () => {
+  const store = tmpStore();
+  const env = { OFXREADER_VENDORS: store };
+  try {
+    // Unknown vendor: no confirmed matches, but candidates surface.
+    const q0 = JSON.parse(cli(["transactions", VENDORS, "--vendor", "Jason's Carousel"], env).stdout);
+    assert.equal(q0.resolved, false);
+    assert.equal(q0.total, 0);
+    assert.ok(q0.vendorCandidates.length >= 1);
+
+    // Learn two confirmed descriptors.
+    const learned = JSON.parse(
+      cli(["vendor-learn", "Jason's Carousel", "SQ *JASONS CARO 0123", "TST* JASONSCAROUSEL"], env).stdout,
+    );
+    assert.equal(learned.vendor, "Jason's Carousel");
+    assert.ok(learned.signatures.includes("JASONS CARO"));
+
+    // It now appears in the vendor list.
+    const vendors = JSON.parse(cli(["vendors"], env).stdout);
+    assert.ok(vendors["Jason's Carousel"]);
+
+    // Query for April is now deterministic: the two April transactions.
+    const q1 = JSON.parse(
+      cli(["transactions", VENDORS, "--vendor", "Jason's Carousel", "--from", "2024-04-01", "--to", "2024-04-30"], env).stdout,
+    );
+    assert.equal(q1.resolved, true);
+    assert.equal(q1.total, 2);
+    assert.deepEqual(q1.transactions.map((t: { id: string }) => t.id).sort(), ["v-1", "v-2"]);
+  } finally {
+    if (existsSync(store)) rmSync(store);
+  }
+});
+
+test("vendor-learn without descriptors is a USAGE error", () => {
+  const r = cli(["vendor-learn", "Jason's Carousel"], { OFXREADER_VENDORS: tmpStore() });
   assert.equal(r.code, 2);
   assert.equal(JSON.parse(r.stderr).error.code, "USAGE");
 });

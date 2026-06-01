@@ -41,12 +41,15 @@ A linear pipeline; each module has one job and is unit-tested in isolation:
 ```
 bin/ofxreader.ts  → thin CLI entry; calls cli.run() and sets process.exitCode
 bin/ofx-mcp.ts    → thin MCP entry; wires createServer() to a stdio transport
-src/cli.ts        → util.parseArgs dispatch; builds filters; shapes output; maps errors→exit codes
-src/mcp.ts        → MCP server: ofx_summary/ofx_accounts/ofx_transactions tools (zod schemas) + the ofx-balances resource (ofx:{+path}, dated balance report)
+src/cli.ts        → util.parseArgs dispatch; summary/accounts/transactions + vendors/vendor-learn; --vendor; maps errors→exit codes
+src/mcp.ts        → MCP server: ofx_summary/ofx_accounts/ofx_transactions (+vendor) / ofx_vendor_learn / ofx_vendors tools + the ofx-balances resource (ofx:{+path})
 src/parser.ts     → reads file, sniffs OFX version, strips <?...?> PIs, XML-parses (fast-xml-parser)
 src/model.ts      → normalizes the raw XML object tree into the canonical OfxDocument model
 src/query.ts      → applies transaction filters (date/amount/type/text/account/limit)
 src/report.ts     → summaries(), uniqueAccounts(), balances() — shared report builders (CLI + MCP)
+src/vendors/      → vendor aliasing/learning: store.ts (local JSON cache; $OFXREADER_VENDORS/XDG path),
+                    normalize.ts (descriptor normalization), match.ts (Dice similarity, confirmed +
+                    fuzzy candidates), resolve.ts (vendor query → confirmed matches + candidates)
 src/dates.ts      → OFX datetime (YYYYMMDDHHMMSS[.SSS][[±tz:NAME]]) → ISO 8601
 src/output.ts     → JSON emit (compact/--pretty) to stdout; error envelope to stderr
 src/help.ts       → HELP_TEXT and the LLM_INSTRUCTIONS string printed by --llm
