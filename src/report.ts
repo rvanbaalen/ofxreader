@@ -58,3 +58,33 @@ function round2(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
+
+export type BalancePoint = {
+  amount: number;
+  asOf: string | null; // full ISO 8601 timestamp from DTASOF
+  date: string | null; // the as-of date only (YYYY-MM-DD)
+};
+
+export type AccountBalances = {
+  account: string;
+  accountType: string;
+  currency: string | null;
+  ledger: BalancePoint | null; // LEDGERBAL
+  available: BalancePoint | null; // AVAILBAL
+};
+
+/** Ledger and available balances per statement, each carrying its as-of date. */
+export function balances(statements: Statement[]): AccountBalances[] {
+  return statements.map((s) => ({
+    account: s.account.id,
+    accountType: s.account.type,
+    currency: s.currency,
+    ledger: toPoint(s.balance),
+    available: toPoint(s.available),
+  }));
+}
+
+function toPoint(b: Money | null): BalancePoint | null {
+  if (b == null) return null;
+  return { amount: b.amount, asOf: b.asOf, date: b.asOf == null ? null : b.asOf.slice(0, 10) };
+}

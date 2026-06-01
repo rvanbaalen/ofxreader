@@ -42,11 +42,11 @@ A linear pipeline; each module has one job and is unit-tested in isolation:
 bin/ofxreader.ts  → thin CLI entry; calls cli.run() and sets process.exitCode
 bin/ofx-mcp.ts    → thin MCP entry; wires createServer() to a stdio transport
 src/cli.ts        → util.parseArgs dispatch; builds filters; shapes output; maps errors→exit codes
-src/mcp.ts        → MCP server: registers ofx_summary/ofx_accounts/ofx_transactions tools (zod schemas)
+src/mcp.ts        → MCP server: ofx_summary/ofx_accounts/ofx_transactions tools (zod schemas) + the ofx-balances resource (ofx:{+path}, dated balance report)
 src/parser.ts     → reads file, sniffs OFX version, strips <?...?> PIs, XML-parses (fast-xml-parser)
 src/model.ts      → normalizes the raw XML object tree into the canonical OfxDocument model
 src/query.ts      → applies transaction filters (date/amount/type/text/account/limit)
-src/report.ts     → summaries() and uniqueAccounts() — shared by the CLI and MCP server
+src/report.ts     → summaries(), uniqueAccounts(), balances() — shared report builders (CLI + MCP)
 src/dates.ts      → OFX datetime (YYYYMMDDHHMMSS[.SSS][[±tz:NAME]]) → ISO 8601
 src/output.ts     → JSON emit (compact/--pretty) to stdout; error envelope to stderr
 src/help.ts       → HELP_TEXT and the LLM_INSTRUCTIONS string printed by --llm

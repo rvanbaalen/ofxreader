@@ -39,6 +39,14 @@ function isError(res: unknown): boolean {
   return (res as { isError?: unknown }).isError === true;
 }
 
+function resourceText(res: unknown): string {
+  const contents = (res as { contents?: Array<{ text?: string }> }).contents;
+  assert.ok(Array.isArray(contents) && contents.length > 0);
+  const text = contents[0]?.text;
+  assert.ok(typeof text === "string");
+  return text;
+}
+
 test("server advertises one tool per CLI capability", async () => {
   await withClient(async (client) => {
     const { tools } = await client.listTools();
@@ -97,5 +105,29 @@ test("invalid arguments are rejected by the input schema", async () => {
   await withClient(async (client) => {
     const res = await call(client, "ofx_transactions", { path: BANK, type: "sideways" });
     assert.equal(isError(res), true);
+  });
+});
+
+test("balances resource template is advertised", async () => {
+  await withClient(async (client) => {
+    const { resourceTemplates } = await client.listResourceTemplates();
+    const tpl = resourceTemplates.find((r) => r.name === "ofx-balances");
+    assert.ok(tpl, "ofx-balances resource template should be registered");
+    assert.match(tpl.uriTemplate, /^ofx:/);
+  });
+});
+
+test("reading the balances resource states each balance with its as-of date", async () => {
+  await withClient(async (client) => {
+    const text = resourceText(await client.readResource({ uri: `ofx:${BANK}` }));
+    assert.match(text, /Account 1234567890 — CHECKING \(USD\)/);
+    assert.match(text, /Balance at 2024-03-31 is 4327\.87 USD/);
+    assert.match(text, /Available balance at 2024-03-31 is 4200\.00 USD/);
+  });
+});
+
+test("reading the balances resource for a non-OFX2 file errors", async () => {
+  await withClient(async (client) => {
+    await assert.rejects(client.readResource({ uri: `ofx:${V1}` }));
   });
 });

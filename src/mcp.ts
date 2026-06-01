@@ -1,10 +1,11 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { readOfxFile, parseOfx, OfxError } from "./parser.ts";
 import { buildDocument } from "./model.ts";
-import type { OfxDocument } from "./model.ts";
-import { summaries, uniqueAccounts } from "./report.ts";
+import type { OfxDocument, Statement } from "./model.ts";
+import { summaries, uniqueAccounts, balances } from "./report.ts";
+import type { BalancePoint } from "./report.ts";
 import { filterTransactions } from "./query.ts";
 import type { TransactionFilters } from "./query.ts";
 import { getVersion } from "./version.ts";
@@ -145,5 +146,53 @@ export function createServer(): McpServer {
     },
   );
 
+  // Resource: statement balances for an OFX file, each stated with its as-of date.
+  // Read URI: ofx:/absolute/path/to/file.ofx
+  server.registerResource(
+    "ofx-balances",
+    new ResourceTemplate("ofx:{+path}", { list: undefined }),
+    {
+      title: "OFX statement balances",
+      description:
+        "Ledger and available balances for each account in an OFX 2.x file, each stated " +
+        'with its as-of date (e.g. "Balance at 2024-03-31 is 4327.87 USD"). ' +
+        "Read it with the URI ofx:/absolute/path/to/file.ofx",
+      mimeType: "text/plain",
+    },
+    async (uri, variables) => {
+      const rawPath = Array.isArray(variables.path) ? variables.path[0] : variables.path;
+      const path = decodeURIComponent(rawPath ?? "");
+      const doc = load(path); // throws OfxError -> surfaced as a read error
+      return {
+        contents: [{ uri: uri.href, mimeType: "text/plain", text: formatBalances(doc.statements) }],
+      };
+    },
+  );
+
   return server;
+}
+
+/** Human-readable balance report: one block per statement, each balance dated. */
+function formatBalances(statements: Statement[]): string {
+  const accounts = balances(statements);
+  if (accounts.length === 0) return "No statements found in this OFX file.";
+
+  return accounts
+    .map((a) => {
+      const cur = a.currency ? ` ${a.currency}` : "";
+      const header = `Account ${a.account} — ${a.accountType}${a.currency ? ` (${a.currency})` : ""}`;
+      const lines = [header];
+      if (a.ledger) lines.push(`  ${balanceLine("Balance", a.ledger, cur)}`);
+      if (a.available) lines.push(`  ${balanceLine("Available balance", a.available, cur)}`);
+      if (!a.ledger && !a.available) lines.push("  No balance reported.");
+      return lines.join("\n");
+    })
+    .join("\n\n");
+}
+
+function balanceLine(label: string, point: BalancePoint, currency: string): string {
+  const amount = Number.isFinite(point.amount) ? point.amount.toFixed(2) : "unknown";
+  return point.date != null
+    ? `${label} at ${point.date} is ${amount}${currency}`
+    : `${label} is ${amount}${currency} (as-of date unknown)`;
 }
