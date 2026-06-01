@@ -1,0 +1,61 @@
+{
+  "name": "@rvanbaalen/ofxreader",
+  "version": "1.0.0",
+  "description": "CLI for reading and querying OFX 2.x (XML) financial files. Built for LLM/agent use: deterministic JSON output and a self-documenting --llm mode.",
+  "type": "module",
+  "bin": {
+    "ofxreader": "bin/ofxreader.ts",
+    "ofx-mcp": "bin/ofx-mcp.ts"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "ofxreader": "node bin/ofxreader.ts",
+    "mcp": "node bin/ofx-mcp.ts",
+    "install-cli": "node scripts/install.ts",
+    "uninstall-cli": "node scripts/install.ts uninstall",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rvanbaalen/ofxreader.git"
+  },
+  "homepage": "https://github.com/rvanbaalen/ofxreader#readme",
+  "bugs": {
+    "url": "https://github.com/rvanbaalen/ofxreader/issues"
+  },
+  "author": "Robin van Baalen",
+  "keywords": [
+    "ofx",
+    "qfx",
+    "cli",
+    "mcp",
+    "finance",
+    "bank",
+    "transactions",
+    "llm",
+    "agent"
+  ],
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "fast-xml-parser": "^5.8.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
+  }
+}
