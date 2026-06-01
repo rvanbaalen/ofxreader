@@ -1,6 +1,6 @@
 {
   "name": "@rvanbaalen/ofxreader",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI for reading and querying OFX 2.x (XML) financial files. Built for LLM/agent use: deterministic JSON output and a self-documenting --llm mode.",
   "type": "module",
   "bin": {
