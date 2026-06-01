@@ -8,6 +8,8 @@ import { summaries, uniqueAccounts, balances } from "./report.ts";
 import type { BalancePoint } from "./report.ts";
 import { filterTransactions } from "./query.ts";
 import type { TransactionFilters } from "./query.ts";
+import { resolveVendorQuery } from "./vendors/resolve.ts";
+import { load as loadVendors, save as saveVendors, learn as learnVendor, today } from "./vendors/store.ts";
 import { getVersion } from "./version.ts";
 
 type ToolResult = {
@@ -86,7 +88,10 @@ export function createServer(): McpServer {
         "range, signed-amount range, debit/credit direction, case-insensitive text or regex " +
         "search over name+memo+payee, single account, and a row limit. Returns " +
         "{ total, count, transactions[] } where total is the match count and count is the " +
-        "number of rows returned. Use this to find or extract specific transactions.",
+        "number of rows returned. Use this to find or extract specific transactions. " +
+        "Pass `vendor` to resolve a learned vendor alias: results are restricted to " +
+        "confirmed matches and the response also includes `vendorCandidates` (fuzzy, " +
+        "unconfirmed descriptors) to propose to the user and persist via ofx_vendor_learn.",
       inputSchema: {
         path: PATH_FIELD,
         from: z
@@ -120,9 +125,16 @@ export function createServer(): McpServer {
           .nonnegative()
           .optional()
           .describe("Maximum rows to return (total still reports all matches)"),
+        vendor: z
+          .string()
+          .optional()
+          .describe(
+            "Canonical vendor name to resolve via the learned alias store. Restricts " +
+              "results to confirmed matches and returns vendorCandidates to learn from.",
+          ),
       },
     },
-    async ({ path, regex, search, from, to, min, max, type, account, limit }) => {
+    async ({ path, regex, search, from, to, min, max, type, account, limit, vendor }) => {
       try {
         if (regex && search == null) {
           return fail(new OfxError("USAGE", "regex requires search."));
@@ -138,8 +150,57 @@ export function createServer(): McpServer {
           search,
           regex,
         };
-        const all = load(path).statements.flatMap((s) => s.transactions);
+        const { statements } = load(path);
+        if (vendor != null) {
+          return ok(resolveVendorQuery(loadVendors(), statements, vendor, filters));
+        }
+        const all = statements.flatMap((s) => s.transactions);
         return ok(filterTransactions(all, filters));
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "ofx_vendor_learn",
+    {
+      title: "Learn a vendor alias",
+      description:
+        "Persist that the given raw OFX descriptors belong to a vendor. Descriptors are " +
+        "normalized into signatures so future ofx_transactions(vendor) queries match them " +
+        "deterministically. Use after the user confirms candidate descriptors.",
+      inputSchema: {
+        vendor: z.string().describe('Canonical vendor name, e.g. "Jason\'s Carousel"'),
+        descriptors: z
+          .array(z.string())
+          .min(1)
+          .describe("Confirmed raw descriptors (transaction name/memo/payee) for this vendor"),
+      },
+    },
+    async ({ vendor, descriptors }) => {
+      try {
+        const store = loadVendors();
+        const entry = learnVendor(store, vendor, descriptors, today());
+        saveVendors(store);
+        return ok({ vendor, ...entry });
+      } catch (err) {
+        return fail(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "ofx_vendors",
+    {
+      title: "List learned vendors",
+      description:
+        "List the learned vendor aliases (canonical name -> signatures + raw descriptors).",
+      inputSchema: {},
+    },
+    async () => {
+      try {
+        return ok(loadVendors().vendors);
       } catch (err) {
         return fail(err);
       }

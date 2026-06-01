@@ -5,11 +5,14 @@ import { buildDocument } from "./model.ts";
 import { filterTransactions } from "./query.ts";
 import type { TransactionFilters } from "./query.ts";
 import { summaries, uniqueAccounts } from "./report.ts";
+import { resolveVendorQuery } from "./vendors/resolve.ts";
+import { load as loadVendors, save as saveVendors, learn as learnVendor, today } from "./vendors/store.ts";
 import { emit, emitError } from "./output.ts";
 import { HELP_TEXT, LLM_INSTRUCTIONS } from "./help.ts";
 import { getVersion } from "./version.ts";
 
-const COMMANDS = ["summary", "accounts", "transactions"] as const;
+const FILE_COMMANDS = ["summary", "accounts", "transactions"] as const;
+const ALL_COMMANDS = "summary | accounts | transactions | vendors | vendor-learn";
 
 const OPTIONS = {
   from: { type: "string" },
@@ -21,6 +24,7 @@ const OPTIONS = {
   regex: { type: "boolean" },
   account: { type: "string" },
   limit: { type: "string" },
+  vendor: { type: "string" },
   pretty: { type: "boolean" },
   llm: { type: "boolean" },
   help: { type: "boolean", short: "h" },
@@ -60,11 +64,36 @@ export function run(argv: string[]): number {
     process.stderr.write(HELP_TEXT + "\n");
     return 2;
   }
-  if (!(COMMANDS as readonly string[]).includes(command)) {
-    emitError(
-      "USAGE",
-      `Unknown command "${command}". Expected: ${COMMANDS.join(" | ")}. Run --llm for help.`,
-    );
+
+  // Store-based commands (no OFX file argument).
+  if (command === "vendors") {
+    try {
+      emit(loadVendors().vendors, pretty);
+      return 0;
+    } catch (err) {
+      return reportError(err);
+    }
+  }
+  if (command === "vendor-learn") {
+    const name = positionals[1];
+    const descriptors = positionals.slice(2);
+    if (name == null || descriptors.length === 0) {
+      emitError("USAGE", 'Usage: ofxreader vendor-learn "<vendor>" "<descriptor>" [more...]');
+      return 2;
+    }
+    try {
+      const store = loadVendors();
+      const entry = learnVendor(store, name, descriptors, today());
+      saveVendors(store);
+      emit({ vendor: name, ...entry }, pretty);
+      return 0;
+    } catch (err) {
+      return reportError(err);
+    }
+  }
+
+  if (!(FILE_COMMANDS as readonly string[]).includes(command)) {
+    emitError("USAGE", `Unknown command "${command}". Expected: ${ALL_COMMANDS}. Run --llm for help.`);
     return 2;
   }
 
@@ -83,18 +112,26 @@ export function run(argv: string[]): number {
       emit(uniqueAccounts(doc.statements), pretty);
     } else {
       const filters = buildFilters(values);
-      const all = doc.statements.flatMap((s) => s.transactions);
-      emit(filterTransactions(all, filters), pretty);
+      if (typeof values.vendor === "string") {
+        emit(resolveVendorQuery(loadVendors(), doc.statements, values.vendor, filters), pretty);
+      } else {
+        const all = doc.statements.flatMap((s) => s.transactions);
+        emit(filterTransactions(all, filters), pretty);
+      }
     }
     return 0;
   } catch (err) {
-    if (err instanceof OfxError) {
-      emitError(err.code, err.message);
-      return err.code === "USAGE" ? 2 : 1;
-    }
-    emitError("INTERNAL", (err as Error).message);
-    return 1;
+    return reportError(err);
   }
+}
+
+function reportError(err: unknown): number {
+  if (err instanceof OfxError) {
+    emitError(err.code, err.message);
+    return err.code === "USAGE" ? 2 : 1;
+  }
+  emitError("INTERNAL", (err as Error).message);
+  return 1;
 }
 
 function buildFilters(values: Record<string, string | boolean | undefined>): TransactionFilters {

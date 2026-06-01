@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -9,9 +11,17 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const ENTRY = join(ROOT, "bin", "ofx-mcp.ts");
 const BANK = join(ROOT, "test", "fixtures", "bank.ofx");
 const V1 = join(ROOT, "test", "fixtures", "v1.ofx");
+const VENDORS = join(ROOT, "test", "fixtures", "vendors.ofx");
 
-async function withClient<T>(fn: (client: Client) => Promise<T>): Promise<T> {
-  const transport = new StdioClientTransport({ command: process.execPath, args: [ENTRY] });
+async function withClient<T>(
+  fn: (client: Client) => Promise<T>,
+  env?: Record<string, string>,
+): Promise<T> {
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [ENTRY],
+    env: { ...(process.env as Record<string, string>), ...(env ?? {}) },
+  });
   const client = new Client({ name: "ofxreader-test", version: "0.0.0" });
   await client.connect(transport);
   try {
@@ -19,6 +29,10 @@ async function withClient<T>(fn: (client: Client) => Promise<T>): Promise<T> {
   } finally {
     await client.close();
   }
+}
+
+function tmpStore(): string {
+  return join(tmpdir(), `ofx-mcp-vendors-${process.pid}-${Math.random().toString(36).slice(2)}.json`);
 }
 
 function call(client: Client, name: string, args: Record<string, unknown>) {
@@ -47,11 +61,17 @@ function resourceText(res: unknown): string {
   return text;
 }
 
-test("server advertises one tool per CLI capability", async () => {
+test("server advertises a tool per CLI capability plus the vendor tools", async () => {
   await withClient(async (client) => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
-    assert.deepEqual(names, ["ofx_accounts", "ofx_summary", "ofx_transactions"]);
+    assert.deepEqual(names, [
+      "ofx_accounts",
+      "ofx_summary",
+      "ofx_transactions",
+      "ofx_vendor_learn",
+      "ofx_vendors",
+    ]);
   });
 });
 
@@ -130,4 +150,55 @@ test("reading the balances resource for a non-OFX2 file errors", async () => {
   await withClient(async (client) => {
     await assert.rejects(client.readResource({ uri: `ofx:${V1}` }));
   });
+});
+
+test("ofx_vendor_learn persists and ofx_transactions(vendor) resolves deterministically", async () => {
+  const store = tmpStore();
+  try {
+    await withClient(async (client) => {
+      const learned = JSON.parse(
+        firstText(
+          await call(client, "ofx_vendor_learn", {
+            vendor: "Jason's Carousel",
+            descriptors: ["SQ *JASONS CARO 0123", "TST* JASONSCAROUSEL"],
+          }),
+        ),
+      );
+      assert.equal(learned.vendor, "Jason's Carousel");
+
+      const vendors = JSON.parse(firstText(await call(client, "ofx_vendors", {})));
+      assert.ok(vendors["Jason's Carousel"]);
+
+      const res = JSON.parse(
+        firstText(
+          await call(client, "ofx_transactions", {
+            path: VENDORS,
+            vendor: "Jason's Carousel",
+            from: "2024-04-01",
+            to: "2024-04-30",
+          }),
+        ),
+      );
+      assert.equal(res.resolved, true);
+      assert.equal(res.total, 2);
+    }, { OFXREADER_VENDORS: store });
+  } finally {
+    if (existsSync(store)) rmSync(store);
+  }
+});
+
+test("ofx_transactions(vendor) on an unknown vendor returns fuzzy candidates", async () => {
+  const store = tmpStore();
+  try {
+    await withClient(async (client) => {
+      const res = JSON.parse(
+        firstText(await call(client, "ofx_transactions", { path: VENDORS, vendor: "Jason's Carousel" })),
+      );
+      assert.equal(res.resolved, false);
+      assert.equal(res.total, 0);
+      assert.ok(res.vendorCandidates.length >= 1);
+    }, { OFXREADER_VENDORS: store });
+  } finally {
+    if (existsSync(store)) rmSync(store);
+  }
 });
