@@ -115,6 +115,12 @@ three tools covering every CLI capability:
 | `ofx_accounts` | `path` | account list |
 | `ofx_transactions` | `path` + filters (`from`, `to`, `min`, `max`, `type`, `search`, `regex`, `account`, `limit`) | `{ total, count, transactions[] }` |
 
+It also exposes one **resource** template:
+
+| Resource | URI | Returns |
+|----------|-----|---------|
+| `ofx-balances` | `ofx:/absolute/path/to/file.ofx` | Ledger & available balance per account, each stated with its as-of date — e.g. `Balance at 2024-03-31 is 4327.87 USD` |
+
 Run it directly with `npm run mcp` (or `node bin/ofx-mcp.ts`).
 
 ### Claude Desktop
