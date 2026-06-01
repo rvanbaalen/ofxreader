@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/rvanbaalen/ofxreader/compare/v1.1.0...v1.2.0) (2026-06-01)
+
+
+### Features
+
+* vendor learning — alias store, fuzzy candidates, vendor query ([991e04b](https://github.com/rvanbaalen/ofxreader/commit/991e04b5d85327915e51bbf1c2311c0243b1d1de))
+
 ## [1.1.0](https://github.com/rvanbaalen/ofxreader/compare/v1.0.0...v1.1.0) (2026-06-01)
 
 
