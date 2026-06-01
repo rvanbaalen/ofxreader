@@ -1,5 +1,6 @@
 # ofxreader
 
+[![npm](https://img.shields.io/npm/v/@rvanbaalen/ofxreader)](https://www.npmjs.com/package/@rvanbaalen/ofxreader)
 [![release-please](https://github.com/rvanbaalen/ofxreader/actions/workflows/release-please.yml/badge.svg)](https://github.com/rvanbaalen/ofxreader/actions/workflows/release-please.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
@@ -8,7 +9,7 @@ financial files (bank and credit-card statement exports). Built for LLM/agent
 use: deterministic JSON output, composable filters, structured errors, and a
 self-documenting `--llm` mode.
 
-> Package name: **`@rvanbaalen/ofxreader`** — published to GitHub Packages.
+> Package name: **`@rvanbaalen/ofxreader`** — published to [npm](https://www.npmjs.com/package/@rvanbaalen/ofxreader) and GitHub Packages.
 
 ## Requirements
 
@@ -17,12 +18,20 @@ self-documenting `--llm` mode.
 
 ## Install
 
+### From npm (recommended)
+
+It's a public package on the npm registry — no authentication needed:
+
+```sh
+npm install -g @rvanbaalen/ofxreader   # installs the `ofxreader` and `ofx-mcp` bins
+ofxreader --llm
+```
+
 ### From GitHub Packages
 
-The package is published to GitHub Packages as `@rvanbaalen/ofxreader`. Point the
-`@rvanbaalen` scope at the GitHub registry and authenticate with a token that has
-the `read:packages` scope (GitHub Packages requires auth even for public
-packages):
+Also published to GitHub Packages. Unlike npm, GitHub Packages requires an
+authenticated token (with `read:packages`) even for public packages, so point the
+`@rvanbaalen` scope at the GitHub registry first:
 
 ```sh
 # ~/.npmrc
@@ -31,8 +40,7 @@ packages):
 ```
 
 ```sh
-npm install -g @rvanbaalen/ofxreader   # installs the `ofxreader` and `ofx-mcp` bins
-ofxreader --llm
+npm install -g @rvanbaalen/ofxreader
 ```
 
 ### From source
